@@ -1,0 +1,17 @@
+{
+  "ballot-id": "b-2026-EXAMPLE-0001",
+  "title": "Example County General Election 2026",
+  "font-size": "large",
+  "races": [
+    { "type": "star", "title": "Mayor", "candidates": ["Andre", "Blake", "Carmen", "David", "Erin"] },
+    { "type": "star-multi", "title": "City Council (3 seats)", "winners": 3, "candidates": ["Andre", "Blake", "Carmen", "David", "Ella"] },
+    { "type": "star-pr", "title": "School Board (3 seats)", "winners": 3, "candidates": ["Andre", "Blake", "Carmen", "David", "Ella", "Felicia"] },
+    { "type": "score", "title": "Parks Commissioner", "candidates": ["Andre", "Blake", "Carmen", "David", "Ella"] },
+    { "type": "ranked-robin", "title": "County Treasurer", "candidates": ["Andre", "Blake", "Carmen", "David", "Erin"] },
+    { "type": "approval", "title": "Library Board", "candidates": ["Andre", "Blake", "Carmen", "David", "Erin"] },
+    { "type": "plurality", "title": "Sheriff", "candidates": ["Andre", "Blake", "Carmen", "David", "Erin"] },
+    { "type": "irv", "title": "District Attorney", "candidates": ["Andre", "Blake", "Carmen", "David", "Erin"] },
+    { "type": "star", "title": "Port Commissioner", "font-size": "medium", "candidates": ["Andre Alvarez", "Blake Brown", "Carmen Castillo", "David Douglas", "Erin Evans", "Felicia Fong", "Gus Garcia", "Hana Hughes", "Ivan Ito", "Jada Jones", "Kofi King", "Lena Lopez"] },
+    { "type": "approval", "title": "Neighborhood Advisory Panel", "font-size": "small", "candidates": ["Andre Alvarez", "Blake Brown", "Carmen Castillo", "David Douglas", "Erin Evans", "Felicia Fong", "Gus Garcia", "Hana Hughes", "Ivan Ito", "Jada Jones", "Kofi King", "Lena Lopez", "Mo Mahmoud", "Nia Nguyen", "Omar Ortiz", "Priya Patel", "Quinn Quade", "Rosa Reyes", "Sam Singh", "Tara Tran", "Uma Udall", "Victor Vega", "Wen Wu", "Xavier Xu", "Yara Young"] }
+  ]
+}

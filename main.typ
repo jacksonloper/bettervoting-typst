@@ -1,6 +1,5 @@
-#import "conf.typ": conf
+// Compile with:  typst compile --font-path fonts main.typ
+// Use other data: typst compile --font-path fonts --input data=my-election.json main.typ
+#import "ballot.typ": election
 
-#show: conf.with(
-  candidates: ("Option 01", "Option 02", "Option 03", "Option 04", "Option 05", "Option 06", "Option 07", "Option 08", "Option 09", "Option 10", "Option 11", "Option 12",)
-)
-
+#election(..json(sys.inputs.at("data", default: "election.json")))
