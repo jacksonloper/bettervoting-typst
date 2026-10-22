@@ -54,6 +54,16 @@ export interface CompileResult {
 
 const MAIN = '#import "/ballot.typ": election\n#election(..json("/election.json"))\n';
 
+// Typst 0.14 reports `panic("...")` as the string's repr, quotes and all.
+const unquote = (m: string) => {
+  if (!/^".*"$/s.test(m)) return m;
+  try {
+    return JSON.parse(m) as string;
+  } catch {
+    return m;
+  }
+};
+
 let queue: Promise<unknown> = Promise.resolve();
 
 export function compileElection(election: unknown, extra: ExtraFonts, fontKey: string): Promise<CompileResult> {
@@ -66,7 +76,7 @@ export function compileElection(election: unknown, extra: ExtraFonts, fontKey: s
     const diags = (out.diagnostics ?? []) as { severity?: string; message: string; path?: string; range?: string }[];
     const errors = diags
       .filter((d) => (d.severity ?? 'error').toLowerCase() === 'error')
-      .map((d) => d.message.replace(/^assertion failed: /, ''));
+      .map((d) => unquote(d.message.replace(/^(assertion failed|panicked with): /, '')));
     return { pdf: out.result ?? undefined, errors };
   });
   queue = run.catch(() => undefined);

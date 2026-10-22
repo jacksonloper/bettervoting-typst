@@ -87,13 +87,38 @@ button.add { width: 100%; padding: 10px; border-style: dashed; }
   padding: 10px 16px; background: color-mix(in srgb, var(--canvas) 85%, transparent); backdrop-filter: blur(6px);
 }
 .status { color: var(--muted); font-size: 12px; }
-.status.bad { color: var(--bad); font-weight: 700; }
+.status.bad { color: var(--panel); background: var(--bad); font-weight: 700; padding: 3px 10px; border-radius: 999px; font-size: 13px; }
 .errors {
   margin: 0 16px 8px; padding: 10px 12px; border-radius: 8px; background: var(--bad-soft); color: var(--bad);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; white-space: pre-wrap;
 }
+.failure {
+  position: sticky; top: 52px; z-index: 1; margin: 0 16px 16px; padding: 14px 16px; border-radius: 10px;
+  background: var(--panel); border: 2px solid var(--bad); border-left-width: 8px;
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.18); color: var(--ink); max-height: 55vh; overflow-y: auto;
+}
+.failure-head { display: flex; gap: 12px; align-items: flex-start; }
+.failure-head h3 { margin: 0 0 2px; font-size: 17px; color: var(--bad); }
+.failure-head p { margin: 0; color: var(--muted); }
+.failure-icon {
+  flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--bad); color: var(--panel); font-weight: 800; font-size: 17px;
+}
+.failure-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.failure-list li { padding: 10px 12px; border-radius: 8px; background: var(--bad-soft); }
+.failure-race { font-weight: 700; margin-bottom: 2px; }
+.fixes { flex-wrap: wrap; margin-top: 8px; }
+.typst-errors { margin-top: 12px; font-size: 12px; }
+.typst-errors summary { cursor: pointer; color: var(--muted); }
+.typst-errors pre {
+  margin: 6px 0 0; padding: 8px 10px; border-radius: 6px; background: var(--bad-soft); color: var(--bad);
+  white-space: pre-wrap; font-size: 12px;
+}
+.race.has-problem { border-color: var(--bad); border-left: 5px solid var(--bad); }
+.race-problem { padding: 8px 12px 10px; background: var(--bad-soft); color: var(--ink); font-size: 13px; }
+.race-problem strong { color: var(--bad); }
 .pages { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 8px 16px 32px; }
-.pages.stale { opacity: 0.4; }
+.pages.stale { opacity: 0.35; filter: grayscale(1); pointer-events: none; }
 .page { background: white; box-shadow: 0 1px 3px rgb(0 0 0 / 0.2), 0 6px 18px rgb(0 0 0 / 0.12); max-width: 100%; height: auto !important; }
 .modal { position: fixed; inset: 0; background: rgb(0 0 0 / 0.45); display: grid; place-items: center; z-index: 10; padding: 16px; }
 .modal-body { background: var(--panel); border-radius: 12px; padding: 16px; width: min(760px, 100%); max-height: 90vh; display: flex; flex-direction: column; }

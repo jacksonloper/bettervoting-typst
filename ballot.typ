@@ -492,6 +492,7 @@
   small: (k: 0.55, max: 25),
 )
 #let min-row = 36.0
+#let max-candidates = calc.max(..font-sizes.values().map(v => v.max))
 
 
 #let resolve-type(race) = {
@@ -522,18 +523,27 @@
   none
 }
 
-#let race-page(race, footer, font-size, paper) = context {
+#let race-page(race, index, footer, font-size, paper) = context {
   let spec = specs.at(resolve-type(race))
   let size-name = race.at("font-size", default: font-size)
   assert(size-name in font-sizes, message: "font-size must be one of " + font-sizes.keys().join(", ") + " (got " + repr(size-name) + ")")
   let size = font-sizes.at(size-name)
   let n = race.at("candidates", default: ()).len()
   let title = race.at("title", default: none)
-  let label = if title == none or title == "" { "a race" } else { "race " + repr(title) }
-  assert(n > 0, message: label + " needs at least one candidate")
-  assert(n <= size.max, message: label + " has " + str(n) + " candidates, but font-size " + repr(size-name) + " supports at most " + str(size.max))
+  let label = "Race " + str(index + 1) + (if title == none or title == "" { "" } else { " (" + repr(title) + ")" })
+  assert(n > 0, message: label + ": no candidates. Every race needs at least one candidate.")
+  if n > size.max {
+    // Suggest the largest font size that still fits, if any.
+    let fits = font-sizes.pairs().filter(((_, v)) => v.max >= n).map(((name, v)) => repr(name) + " (up to " + str(v.max) + ")")
+    let fix = if fits.len() > 0 {
+      "switch it to font-size " + fits.join(" or ") + ", or remove " + str(n - size.max) + " candidate" + (if n - size.max == 1 { "" } else { "s" })
+    } else {
+      "no font size supports more than " + str(max-candidates) + " candidates; remove " + str(n - max-candidates) + " or split the race"
+    }
+    panic(label + ": " + str(n) + " candidates is too many for font-size " + repr(size-name) + ", which fits at most " + str(size.max) + " per page. To fix: " + fix + ".")
+  }
   let chosen = fit-race(race, spec, size.k, paper: paper)
-  assert(chosen != none, message: label + " does not fit on one page at font-size " + repr(size-name) + "; shorten its text or use a smaller font-size")
+  assert(chosen != none, message: label + ": does not fit on one page at font-size " + repr(size-name) + ". To fix: shorten its title, instructions or footer text, or use a smaller font-size.")
   let (k, card, title-h) = chosen
   let total = (card.height + title-h) * k
 
@@ -605,6 +615,6 @@
       }
     }
     if i > 0 { pagebreak() }
-    race-page(race, footer, font-size, paper)
+    race-page(race, i, footer, font-size, paper)
   }
 }

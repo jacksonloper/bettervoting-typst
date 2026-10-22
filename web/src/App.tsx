@@ -99,6 +99,46 @@ const candidatesOf = (r: Race) =>
     .map((c) => c.trim())
     .filter(Boolean);
 
+// Client-side mirror of the checks in ballot.typ, so problems show up next to
+// the race that has them (Typst's own error is shown too).
+interface Problem {
+  raceId: number;
+  index: number;
+  title: string;
+  message: string;
+  fixes: { label: string; patch: Partial<Race> }[];
+}
+
+const MAX_CANDIDATES = Math.max(...Object.values(FONT_SIZES));
+
+function findProblems(e: Election): Problem[] {
+  const out: Problem[] = [];
+  e.races.forEach((r, index) => {
+    const n = candidatesOf(r).length;
+    const size = r.fontSize || e.fontSize;
+    const limit = FONT_SIZES[size];
+    const base = { raceId: r.id, index, title: r.title };
+    if (n === 0) {
+      out.push({ ...base, message: 'This race has no candidates. Add at least one name.', fixes: [] });
+    } else if (n > limit) {
+      const fits = (Object.keys(FONT_SIZES) as FontSize[]).filter((k) => FONT_SIZES[k] >= n);
+      const extra = n - limit;
+      out.push({
+        ...base,
+        message:
+          `${n} candidates is too many for font size “${size}”, which fits at most ${limit} per page. ` +
+          (fits.length
+            ? `Switch to a smaller font size or remove ${extra} candidate${extra === 1 ? '' : 's'}.`
+            : `No font size fits more than ${MAX_CANDIDATES}; remove ${n - MAX_CANDIDATES} or split the race.`),
+        fixes: fits.map((k) => ({ label: `Use ${k} (≤ ${FONT_SIZES[k]})`, patch: { fontSize: k } })),
+      });
+    }
+  });
+  return out;
+}
+
+const raceLabel = (p: { index: number; title: string }) => `Race ${p.index + 1}${p.title ? ` · ${p.title}` : ''}`;
+
 const toJson = (e: Election): JsonElection => ({
   'ballot-id': e.ballotId,
   title: e.title,
@@ -151,6 +191,15 @@ export default function App() {
   const fileInput = useRef<HTMLInputElement>(null);
 
   const json = useMemo(() => toJson(election), [election]);
+  const problems = useMemo(() => findProblems(election), [election]);
+  const failed = errors.length > 0 || problems.length > 0;
+
+  const goToRace = (id: number) => {
+    setSelected(id);
+    requestAnimationFrame(() =>
+      document.getElementById(`race-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+    );
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -320,8 +369,13 @@ export default function App() {
           const n = candidatesOf(r).length;
           const limit = FONT_SIZES[r.fontSize || election.fontSize];
           const open = selected === r.id;
+          const problem = problems.find((p) => p.raceId === r.id);
           return (
-            <section key={r.id} className={'card race' + (open ? ' open' : '')}>
+            <section
+              key={r.id}
+              id={`race-${r.id}`}
+              className={'card race' + (open ? ' open' : '') + (problem ? ' has-problem' : '')}
+            >
               <button type="button" className="race-summary" onClick={() => setSelected(open ? 0 : r.id)}>
                 <span className="race-num">{i + 1}</span>
                 <span className="race-name">{r.title || '(untitled)'}</span>
@@ -330,6 +384,20 @@ export default function App() {
                   {n}/{limit}
                 </span>
               </button>
+              {problem && (
+                <div className="race-problem" role="alert">
+                  <strong>Can’t render this race.</strong> {problem.message}
+                  {problem.fixes.length > 0 && (
+                    <div className="row fixes">
+                      {problem.fixes.map((f) => (
+                        <button key={f.label} type="button" onClick={() => updateRace(r.id, f.patch)}>
+                          {f.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               {open && (
                 <div className="race-body">
                   <div className="grid2">
@@ -462,21 +530,67 @@ export default function App() {
 
       <main className="preview">
         <div className="toolbar">
-          <span className={'status' + (errors.length ? ' bad' : '')}>
-            {errors.length ? 'Error' : busy ? 'Rendering…' : 'Up to date'}
+          <span className={'status' + (failed ? ' bad' : '')}>
+            {failed ? '⚠ Render failed' : busy ? 'Rendering…' : '✓ Up to date'}
           </span>
-          <button type="button" className="primary" disabled={!pdf || errors.length > 0} onClick={download}>
+          <button
+            type="button"
+            className="primary"
+            disabled={!pdf || failed}
+            title={failed ? 'Fix the problems listed first' : undefined}
+            onClick={download}
+          >
             Download PDF
           </button>
         </div>
-        {errors.length > 0 && (
-          <div className="errors">
-            {errors.map((e, i) => (
-              <div key={i}>{e}</div>
-            ))}
+        {failed && (
+          <div className="failure" role="alert">
+            <div className="failure-head">
+              <span className="failure-icon" aria-hidden>
+                !
+              </span>
+              <div>
+                <h3>The ballot couldn’t be rendered</h3>
+                <p>
+                  {problems.length > 0
+                    ? `${problems.length} race${problems.length === 1 ? ' needs' : 's need'} attention. `
+                    : ''}
+                  {pdf ? 'The pages below are from the last successful render and are out of date. ' : ''}
+                  Download is disabled until this is fixed.
+                </p>
+              </div>
+            </div>
+            {problems.length > 0 && (
+              <ul className="failure-list">
+                {problems.map((p) => (
+                  <li key={p.raceId}>
+                    <div className="failure-race">{raceLabel(p)}</div>
+                    <div>{p.message}</div>
+                    <div className="row fixes">
+                      {p.fixes.map((f) => (
+                        <button key={f.label} type="button" onClick={() => updateRace(p.raceId, f.patch)}>
+                          {f.label}
+                        </button>
+                      ))}
+                      <button type="button" className="link" onClick={() => goToRace(p.raceId)}>
+                        Edit race {p.index + 1}
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {errors.length > 0 && (
+              <details className="typst-errors" open={problems.length === 0}>
+                <summary>Typst error{errors.length === 1 ? '' : 's'}</summary>
+                {errors.map((e, i) => (
+                  <pre key={i}>{e}</pre>
+                ))}
+              </details>
+            )}
           </div>
         )}
-        <PdfPreview pdf={pdf} stale={errors.length > 0} />
+        <PdfPreview pdf={pdf} stale={failed} />
       </main>
 
       {showJson && (
