@@ -8,7 +8,7 @@
     { "type": "star-pr", "title": "School Board (3 seats)", "winners": 3, "candidates": ["Andre", "Blake", "Carmen", "David", "Ella", "Felicia"] },
     { "type": "score", "title": "Parks Commissioner", "candidates": ["Andre", "Blake", "Carmen", "David", "Ella"] },
     { "type": "ranked-robin", "title": "County Treasurer", "candidates": ["Andre", "Blake", "Carmen", "David", "Erin"] },
-    { "type": "approval", "title": "Library Board", "candidates": ["Andre", "Blake", "Carmen", "David", "Erin"] },
+    { "type": "approval", "title": "Library Board", "yes-no": true, "candidates": ["Andre", "Blake", "Carmen", "David", "Erin"] },
     { "type": "plurality", "title": "Sheriff", "candidates": ["Andre", "Blake", "Carmen", "David", "Erin"] },
     { "type": "irv", "title": "District Attorney", "candidates": ["Andre", "Blake", "Carmen", "David", "Erin"] },
     { "type": "star", "title": "Port Commissioner", "font-size": "medium", "candidates": ["Andre Alvarez", "Blake Brown", "Carmen Castillo", "David Douglas", "Erin Evans", "Felicia Fong", "Gus Garcia", "Hana Hughes", "Ivan Ito", "Jada Jones", "Kofi King", "Lena Lopez"] },

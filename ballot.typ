@@ -160,6 +160,23 @@
       footer: none,
     ),
   ),
+  // pages 51 (boxes) and 52 (ovals): approval with Yes / No columns.
+  // Not a ballot type of its own: used for approval races with yes-no: true.
+  approval-yes-no: (
+    top: 142.4,  // card top in the reference (auto = centre on page)
+    card: (75.4, 536.6),
+    header: (kind: "title", bl: 56.6, size: 38.0),
+    instructions: (kind: "line", gap: 47.8, size: 20.43, x: 101.1),
+    winners: none,
+    grid: (kind: "yes-no", head-gap: 54.8, head-size: 24.57, rows-gap: 16.7, cols: (347.5, 444.6)),
+    rows: (h: 51.1, name-x: 143.4, ring: black, marks: "check"),
+    footer: (size: 19.57, gap: 40.8, pitch: 23.47, width: 430.0, bottom: 26.2),
+    text: (
+      title: "Approval Voting",
+      instructions: "Vote for ALL candidates you approve of.",
+      footer: none,
+    ),
+  ),
   // page 55
   plurality: (
     top: 168.0,  // card top in the reference (auto = centre on page)
@@ -168,7 +185,7 @@
     instructions: (kind: "line", gap: 48.0, size: 20.43, x: 101.1),
     winners: none,
     grid: (kind: "none", rows-gap: 20.1),
-    rows: (h: 51.1, name-x: 143.2, ring: gray-ring, marks: "oval", mark-x: 347.5),
+    rows: (h: 51.1, name-x: 143.2, ring: gray-ring, marks: "oval", mark-x: 347.5, fill: white),
     footer: (size: 19.57, gap: 44.8, pitch: 23.47, width: 430.0, bottom: 31.8),
     text: (
       title: "Choose One Voting",
@@ -222,7 +239,7 @@
   "fptp": "plurality",
 )
 
-#let ballot-types = specs.keys()
+#let ballot-types = specs.keys().filter(k => k != "approval-yes-no")
 
 // Default number of rank columns for ranked ballots (override with max-rank).
 #let default-max-rank = 8
@@ -290,14 +307,13 @@
 }
 
 // Mark target centred at (cx, cy), scaled by s.
-#let mark(kind, cx, cy, s, ring, label: none) = {
+#let mark(kind, cx, cy, s, ring, label: none, fill: none) = {
   if kind == "check" {
     let (w, h) = (27.7 * s, 25.6 * s)
     at(cx - w / 2, cy - h / 2, rect(width: w * 1pt, height: h * 1pt, radius: 5pt * s, stroke: 2.5pt * s + black))
   } else {
     let (w, h) = (30.8 * s, 25.5 * s)
     let thick = if kind == "oval" { 2.5 } else { 2.25 }
-    let fill = if kind == "oval" { white } else { none }
     at(cx - w / 2, cy - h / 2, ellipse(width: w * 1pt, height: h * 1pt, fill: fill, stroke: thick * s * 1pt + ring))
     if label != none {
       let size = 17.14 * s * (if label.len() > 1 { 0.78 } else { 1.0 })
@@ -417,6 +433,13 @@
       items.push(at-center(c, hbl, pitch, T(ordinal(i + 1), size: hsize, weight: "bold")))
     }
     rows-top = hbl + grid.rows-gap
+  } else if grid.kind == "yes-no" {
+    cols = grid.cols.map(X)
+    let hbl = last-bl + grid.head-gap
+    for (c, l) in cols.zip((get("yes-label", "Yes"), get("no-label", "No"))) {
+      items.push(at-center(c, hbl, 100.0, T(l, size: grid.head-size, weight: "bold")))
+    }
+    rows-top = hbl + grid.rows-gap
   } else {
     rows-top = last-bl + grid.rows-gap
     cols = (X(spec.rows.mark-x),)
@@ -435,6 +458,8 @@
     let top = rows-top + row-h * i
     items.push(at(x0, top - 1.125, rect(width: (x1 - x0) * 1pt, height: 2.25pt, fill: teal-line)))
   }
+  // Approval may use ovals instead of boxes (page 52).
+  let marks = if spec.rows.marks == "check" and get("mark", "box") == "oval" { "oval" } else { spec.rows.marks }
   let name-size = 24.57 * calc.min(1.0, row-h / 51.1 * 1.3)
   let name-w = cols.at(0) - 15.4 * s - 20 - X(spec.rows.name-x)
   for (i, cand) in cands.enumerate() {
@@ -442,7 +467,7 @@
     items.push(name-cell(cand, X(spec.rows.name-x), cy, name-w, name-size))
     for (j, c) in cols.enumerate() {
       let label = if spec.rows.marks in ("score", "rank") { labels.at(j) } else { none }
-      items.push(mark(spec.rows.marks, c, cy, s, spec.rows.ring, label: label))
+      items.push(mark(marks, c, cy, s, spec.rows.ring, label: label, fill: spec.rows.at("fill", default: none)))
     }
   }
 
@@ -498,8 +523,8 @@
 #let resolve-type(race) = {
   let kind = race.at("type", default: "star")
   kind = type-aliases.at(kind, default: kind)
-  assert(kind in specs, message: "unknown ballot type '" + kind + "'; expected one of " + specs.keys().join(", "))
-  kind
+  assert(kind in ballot-types, message: "unknown ballot type '" + kind + "'; expected one of " + ballot-types.join(", "))
+  if kind == "approval" and race.at("yes-no", default: false) == true { "approval-yes-no" } else { kind }
 }
 
 // Lay out a race at font-size factor k. Returns (k, card, title-h), or none
@@ -585,7 +610,9 @@
 // Race keys: type (star | star-multi | star-pr | score | ranked-robin |
 // approval | plurality | irv), candidates, title (contest name above the
 // card), font-size (overrides the election default), winners (star-multi /
-// star-pr), max-rank (ranked types, default 8), and text overrides: heading,
+// star-pr), max-rank (ranked types, default 8), yes-no (approval: Yes / No
+// columns, pages 51-52), mark (approval: "box" or "oval"), yes-label,
+// no-label, and text overrides: heading,
 // instructions, footer, footer-heading, worst-label, best-label,
 // winners-text, instructions-label. Use none to hide a footer.
 #let election(

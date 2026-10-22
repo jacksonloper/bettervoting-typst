@@ -13,7 +13,7 @@ from pdfminer.layout import LTChar
 
 REFERENCE = "reference/2026-ballots.pdf"
 # reference page -> page of tests/reference.typ
-PAGES = [(2, 1), (43, 2), (46, 3), (45, 4), (47, 5), (49, 6), (55, 7), (56, 8)]
+PAGES = [(2, 1), (43, 2), (46, 3), (45, 4), (47, 5), (49, 6), (55, 7), (56, 8), (51, 9), (52, 10)]
 # Known, intended differences:
 #  - page 2: "Erin" sits 21pt low in the reference (a mistake in the slide).
 #  - page 46: the full-bleed card is ~11pt taller than the page allows once the

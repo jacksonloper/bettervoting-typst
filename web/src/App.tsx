@@ -30,6 +30,8 @@ interface Race {
   fontSize: '' | FontSize;
   footer: string;
   hideFooter: boolean;
+  yesNo: boolean;
+  mark: 'box' | 'oval';
 }
 
 interface Election {
@@ -52,6 +54,8 @@ const newRace = (partial: Partial<Race> = {}): Race => ({
   fontSize: '',
   footer: '',
   hideFooter: false,
+  yesNo: false,
+  mark: 'box',
   ...partial,
 });
 
@@ -63,6 +67,8 @@ type JsonRace = {
   'max-rank'?: number;
   'font-size'?: FontSize;
   footer?: string | null;
+  'yes-no'?: boolean;
+  mark?: 'box' | 'oval';
 };
 type JsonElection = {
   'ballot-id'?: string;
@@ -89,6 +95,8 @@ const fromJson = (j: JsonElection): Election => ({
       fontSize: r['font-size'] ?? '',
       footer: typeof r.footer === 'string' ? r.footer : '',
       hideFooter: r.footer === null,
+      yesNo: r['yes-no'] ?? false,
+      mark: r.mark ?? 'box',
     }),
   ),
 });
@@ -151,6 +159,10 @@ const toJson = (e: Election): JsonElection => ({
     if (r.type === 'star-multi' || r.type === 'star-pr') out.winners = r.winners;
     if ((r.type === 'irv' || r.type === 'ranked-robin') && Number(r.maxRank) > 0) out['max-rank'] = Number(r.maxRank);
     if (r.fontSize) out['font-size'] = r.fontSize;
+    if (r.type === 'approval') {
+      if (r.yesNo) out['yes-no'] = true;
+      if (r.mark === 'oval') out.mark = 'oval';
+    }
     if (r.hideFooter) out.footer = null;
     else if (r.footer.trim()) out.footer = r.footer;
     return out;
@@ -379,7 +391,10 @@ export default function App() {
               <button type="button" className="race-summary" onClick={() => setSelected(open ? 0 : r.id)}>
                 <span className="race-num">{i + 1}</span>
                 <span className="race-name">{r.title || '(untitled)'}</span>
-                <span className="pill">{BALLOT_TYPES.find((t) => t.id === r.type)?.label}</span>
+                <span className="pill">
+                  {BALLOT_TYPES.find((t) => t.id === r.type)?.label}
+                  {r.type === 'approval' && r.yesNo ? ' Y/N' : ''}
+                </span>
                 <span className={'pill' + (n > limit ? ' bad' : '')}>
                   {n}/{limit}
                 </span>
@@ -440,6 +455,30 @@ export default function App() {
                         onChange={(e) => updateRace(r.id, { winners: Math.max(1, Number(e.target.value) || 1) })}
                       />
                     </label>
+                  )}
+                  {r.type === 'approval' && (
+                    <div className="grid2">
+                      <label>
+                        Columns
+                        <select
+                          value={r.yesNo ? 'yes-no' : 'single'}
+                          onChange={(e) => updateRace(r.id, { yesNo: e.target.value === 'yes-no' })}
+                        >
+                          <option value="single">One column (p. 49)</option>
+                          <option value="yes-no">Yes / No (p. 51–52)</option>
+                        </select>
+                      </label>
+                      <label>
+                        Marks
+                        <select
+                          value={r.mark}
+                          onChange={(e) => updateRace(r.id, { mark: e.target.value as Race['mark'] })}
+                        >
+                          <option value="box">Boxes</option>
+                          <option value="oval">Ovals</option>
+                        </select>
+                      </label>
+                    </div>
                   )}
                   {(r.type === 'irv' || r.type === 'ranked-robin') && (
                     <label>

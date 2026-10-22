@@ -6,8 +6,8 @@ Printable paper ballots that reproduce the layouts in
 
 - **Every ballot type in the deck:** STAR (p. 2), STAR multi-winner
   (p. 43), Proportional STAR (p. 46), Score (p. 45), Ranked Robin (p. 47),
-  Approval (p. 49), Choose One / plurality (p. 55) and Ranked Choice / IRV
-  (p. 56).
+  Approval (p. 49, or with Yes / No columns as on pp. 51–52), Choose One /
+  plurality (p. 55) and Ranked Choice / IRV (p. 56).
 - **Several races per election:** each race gets exactly one page, and every
   page carries the same **ballot ID** in the lower-right footer.
 - **Matches the deck closely:** positions, sizes and colours were measured from
@@ -73,6 +73,9 @@ Race:
 | `font-size` | overrides the election default |
 | `winners` | number of seats (`star-multi`, `star-pr`) |
 | `max-rank` | number of rank columns (`irv`, `ranked-robin`; default `min(candidates, 8)`) |
+| `yes-no` | `approval` only: `true` gives Yes / No columns (pp. 51–52) |
+| `mark` | `approval` only: `"box"` (default, pp. 49/51) or `"oval"` (p. 52) |
+| `yes-label`, `no-label` | column headings for `yes-no` (default "Yes", "No") |
 | `heading`, `instructions`, `footer`, `footer-heading`, `worst-label`, `best-label`, `winners-text`, `instructions-label` | replace the standard text; `footer: none` hides the footer |
 
 ### Font sizes
