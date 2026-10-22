@@ -333,6 +333,19 @@
   at(x, cy + 0.356 * size - extra / 2, body)
 }
 
+// Write-in row: a "Write-in:" label and a line to write a name on, sitting on
+// the same baseline a candidate name would.
+#let write-in-cell(x, cy, w, size, label) = {
+  let lsize = size * 0.62
+  let bl = cy + 0.356 * size
+  let lw = if label == none or label == "" { 0.0 } else { measure(T(label, size: lsize)).width / 1pt + 6 }
+  if lw > 0 { at(x, bl, T(label, size: lsize)) }
+  at(x + lw, bl, line(length: (w - lw) * 1pt, stroke: 1.2pt + black))
+}
+
+// Number of rows: candidates plus write-in lines.
+#let row-count(race) = race.at("candidates", default: ()).len() + race.at("write-ins", default: 0)
+
 // ---------------------------------------------------------------------------
 // Card layout. Returns (height: float, body: content). Must run in context.
 // x coordinates are absolute page positions; y is relative to the card top.
@@ -419,7 +432,7 @@
     }
     rows-top = st + grid.rows-gap
   } else if grid.kind == "rank" {
-    let n = calc.max(1, calc.min(race.candidates.len(), get("max-rank", default-max-rank)))
+    let n = calc.max(1, calc.min(row-count(race), get("max-rank", default-max-rank)))
     // reference: 5 columns ending at 500.1; more columns may extend right
     let last = X(if n > 5 { calc.min(spec.card.at(1) - 30.0, rank-last + rank-pitch * (n - 5)) } else { rank-last })
     let first-min = X(spec.rows.name-x + 132.0)
@@ -446,7 +459,7 @@
   }
 
   // Rows
-  let cands = race.candidates
+  let cands = race.candidates + range(race.at("write-ins", default: 0)).map(_ => none)
   let rows-bottom = rows-top + row-h * cands.len()
   for i in range(cands.len()) {
     let top = rows-top + row-h * i
@@ -464,7 +477,11 @@
   let name-w = cols.at(0) - 15.4 * s - 20 - X(spec.rows.name-x)
   for (i, cand) in cands.enumerate() {
     let cy = rows-top + row-h * (i + 0.5)
-    items.push(name-cell(cand, X(spec.rows.name-x), cy, name-w, name-size))
+    if cand == none {
+      items.push(write-in-cell(X(spec.rows.name-x), cy, name-w, name-size, get("write-in-label", "Write-in:")))
+    } else {
+      items.push(name-cell(cand, X(spec.rows.name-x), cy, name-w, name-size))
+    }
     for (j, c) in cols.enumerate() {
       let label = if spec.rows.marks in ("score", "rank") { labels.at(j) } else { none }
       items.push(mark(marks, c, cy, s, spec.rows.ring, label: label, fill: spec.rows.at("fill", default: none)))
@@ -502,19 +519,46 @@
   (height: bottom, body: block(width: X(page-w) * 1pt, height: bottom * 1pt, { for it in items { it } }))
 }
 
-// Race title shown above the card (page 33 style).
-#let race-title(title, k) = para(title, size: 24.57, pitch: 29.5, width: 560.0 / k, align-x: center, weight: "bold")
-#let title-gap = 22.5 // card top - last title baseline
-#let title-ascent = 19.5 // approx cap height above first baseline
+// Race title (page 33 style) and description, shown above the card.
+// Returns (height, body) with the card starting at `height`. Needs context.
+#let title-gap = 22.5 // card top - last title/description baseline
+#let race-header(race, k) = {
+  let title = race.at("title", default: none)
+  let desc = race.at("description", default: none)
+  let has-title = title != none and title != ""
+  let has-desc = desc != none and desc != ""
+  if not has-title and not has-desc { return (height: 0.0, body: none) }
+  let w = 560.0 / k
+  let items = ()
+  let y = 0.0
+  if has-title {
+    y = 19.5 // cap height of the 24.57pt title
+    let t = para(title, size: 24.57, pitch: 29.5, width: w, align-x: center, weight: "bold")
+    items.push(at-center(page-w / 2 / k, y, w, t))
+    y += h-of(t)
+  }
+  if has-desc {
+    y += if has-title { 26.0 } else { 11.5 }
+    let d = para(desc, size: 15.0, pitch: 19.0, width: w - 20, align-x: center)
+    items.push(at-center(page-w / 2 / k, y, w - 20, d))
+    y += h-of(d)
+  }
+  (height: y + title-gap, body: { for it in items { it } })
+}
 
-// Font sizes. "large" is the reference PDF's size; smaller sizes scale all
-// text and vertical spacing by k (horizontal positions stay put). Each size
-// supports at most `max` candidates per race: rows shrink (down to min-row,
-// in that size's units) to make room, and a race over the limit fails.
+// Font sizes, as a fraction k of the reference PDF's size: all text and
+// vertical spacing scale by k while horizontal positions stay put. Each size
+// supports at most `max` rows (candidates + write-ins) per race; rows shrink
+// (down to min-row, in that size's units) to make room, and a race over the
+// limit fails. The limits hold for every ballot type even with a contest
+// title and a two-line description.
 #let font-sizes = (
-  large: (k: 1.0, max: 6),
-  medium: (k: 0.74, max: 14),
-  small: (k: 0.55, max: 25),
+  large: (k: 0.72, max: 14),
+  medium: (k: 0.53, max: 25),
+  small: (k: 0.43, max: 35),
+  // The reference PDF's own size. Too big for most uses; kept so the layout
+  // can be checked against the PDF (tests/reference.typ).
+  reference: (k: 1.0, max: 6),
 )
 #let min-row = 36.0
 #let max-candidates = calc.max(..font-sizes.values().map(v => v.max))
@@ -533,17 +577,17 @@
   let pg = papers.at(paper)
   let dx = (pg.w - page-w) / 2
   let clip = (side-gap - dx, page-w + dx - side-gap)
-  let n = race.candidates.len()
-  let title = race.at("title", default: none)
+  let n = row-count(race)
   let room = (pg.h - band-bottom-gap - band-top) / k
-  let title-h = if title != none and title != "" { title-ascent + h-of(race-title(title, k)) + title-gap } else { 0.0 }
+  let header = race-header(race, k)
+  let title-h = header.height
   let card = layout-card(race, spec, spec.rows.h, k, clip)
   if card.height + title-h <= room {
-    return (k: k, card: card, title-h: title-h)
+    return (k: k, card: card, header: header)
   }
   let row-h = (room - title-h - (card.height - spec.rows.h * n)) / n
   if row-h >= min-row {
-    return (k: k, card: layout-card(race, spec, row-h, k, clip), title-h: title-h)
+    return (k: k, card: layout-card(race, spec, row-h, k, clip), header: header)
   }
   none
 }
@@ -553,23 +597,27 @@
   let size-name = race.at("font-size", default: font-size)
   assert(size-name in font-sizes, message: "font-size must be one of " + font-sizes.keys().join(", ") + " (got " + repr(size-name) + ")")
   let size = font-sizes.at(size-name)
-  let n = race.at("candidates", default: ()).len()
+  let n = row-count(race)
+  let w = race.at("write-ins", default: 0)
   let title = race.at("title", default: none)
   let label = "Race " + str(index + 1) + (if title == none or title == "" { "" } else { " (" + repr(title) + ")" })
-  assert(n > 0, message: label + ": no candidates. Every race needs at least one candidate.")
+  assert(type(w) == int and w >= 0, message: label + ": write-ins must be a whole number (got " + repr(w) + ").")
+  assert(n > 0, message: label + ": no candidates. Every race needs at least one candidate or write-in line.")
+  let what = if w > 0 { " rows (" + str(n - w) + " candidates + " + str(w) + " write-in" + (if w == 1 { "" } else { "s" }) + ")" } else { " candidates" }
   if n > size.max {
     // Suggest the largest font size that still fits, if any.
     let fits = font-sizes.pairs().filter(((_, v)) => v.max >= n).map(((name, v)) => repr(name) + " (up to " + str(v.max) + ")")
     let fix = if fits.len() > 0 {
-      "switch it to font-size " + fits.join(" or ") + ", or remove " + str(n - size.max) + " candidate" + (if n - size.max == 1 { "" } else { "s" })
+      "switch it to font-size " + fits.join(" or ") + ", or remove " + str(n - size.max) + (if w > 0 { " candidates or write-ins" } else if n - size.max == 1 { " candidate" } else { " candidates" })
     } else {
       "no font size supports more than " + str(max-candidates) + " candidates; remove " + str(n - max-candidates) + " or split the race"
     }
-    panic(label + ": " + str(n) + " candidates is too many for font-size " + repr(size-name) + ", which fits at most " + str(size.max) + " per page. To fix: " + fix + ".")
+    panic(label + ": " + str(n) + what + " is too many for font-size " + repr(size-name) + ", which fits at most " + str(size.max) + " per page. To fix: " + fix + ".")
   }
   let chosen = fit-race(race, spec, size.k, paper: paper)
-  assert(chosen != none, message: label + ": does not fit on one page at font-size " + repr(size-name) + ". To fix: shorten its title, instructions or footer text, or use a smaller font-size.")
-  let (k, card, title-h) = chosen
+  assert(chosen != none, message: label + ": does not fit on one page at font-size " + repr(size-name) + ". To fix: shorten its title, description, instructions or footer text, or use a smaller font-size.")
+  let (k, card, header) = chosen
+  let title-h = header.height
   let total = (card.height + title-h) * k
 
   // Use the reference card position when it fits (title goes above it);
@@ -580,9 +628,7 @@
   let y0 = if spec.top == auto or k < 1.0 { pg.h / 2 - total / 2 } else { spec.top + (pg.h - page-h) / 2 - title-h }
   y0 = calc.max(band-top, calc.min(y0, band-bottom - total))
   let group = block(width: page-w / k * 1pt, height: (card.height + title-h) * 1pt, {
-    if title-h > 0 {
-      at-center(page-w / 2 / k, title-ascent, 560.0 / k, race-title(title, k))
-    }
+    header.body
     at(0, title-h, card.body)
   })
   if k < 1.0 {
@@ -594,22 +640,106 @@
 }
 
 // ---------------------------------------------------------------------------
+// Cover page: election title, description and the list of contests, in the
+// same card style as the ballots. Scales down if the description is long.
+// ---------------------------------------------------------------------------
+
+#let method-names = (
+  star: "STAR Voting",
+  star-multi: "STAR Voting",
+  star-pr: "Proportional STAR Voting",
+  score: "Score Voting",
+  ranked-robin: "Ranked Robin",
+  approval: "Approval Voting",
+  approval-yes-no: "Approval Voting",
+  plurality: "Choose One Voting",
+  irv: "Ranked Choice Voting",
+)
+
+#let cover-page(title, description, races, footer, paper) = context {
+  let pg = papers.at(paper)
+  let (x0, x1) = (39.1, 572.9)
+  let cx = (x0 + x1) / 2
+  let tx = x0 + 36
+  let tw = x1 - x0 - 72
+  let items = ()
+  let y = 0.0
+  if title != none and title != "" {
+    y = 58.0
+    let t = para(title, size: 30.0, pitch: 36.0, width: tw, align-x: center, weight: "bold")
+    items.push(at-center(cx, y, tw, t))
+    y += h-of(t)
+  }
+  if description != none and description != "" {
+    y += 40.0
+    let d = para(description, size: 16.0, pitch: 21.5, width: tw)
+    items.push(at(tx, y, d))
+    y += h-of(d)
+  }
+  // Contests on this ballot, as ballot-style rows.
+  y += 44.0
+  items.push(at(tx, y, T("On this ballot (" + str(races.len()) + " contest" + (if races.len() == 1 { "" } else { "s" }) + "):", size: 16.0, weight: "bold")))
+  y += 14.0
+  let row-h = 34.0
+  for (i, race) in races.enumerate() {
+    let top = y + row-h * i
+    if calc.even(i) { items.push(at(x0 + 0.2, top, rect(width: (x1 - x0 - 0.4) * 1pt, height: row-h * 1pt, fill: teal-fill))) }
+    items.push(at(x0, top - 1.125, rect(width: (x1 - x0) * 1pt, height: 2.25pt, fill: teal-line)))
+    let bl = top + row-h / 2 + 0.36 * 15.0
+    let name = race.at("title", default: none)
+    if name == none or name == "" { name = "Contest " + str(i + 1) }
+    let kind = resolve-type(race)
+    let method = method-names.at(kind)
+    if kind == "star-multi" or kind == "star-pr" { method += ", " + str(race.at("winners", default: 2)) + " winners" }
+    let right = T(method + " · page " + str(i + 2), size: 12.0)
+    let rw = measure(right).width / 1pt
+    // Shrink long contest names to fit beside the method.
+    let room = tw - 30 - rw - 16
+    let nw = measure(T(name, size: 15.0, weight: "bold")).width / 1pt
+    let size = if nw > room { calc.max(9.0, 15.0 * room / nw) } else { 15.0 }
+    items.push(at(tx, bl, T(str(i + 1) + ".", size: 15.0, weight: "bold")))
+    items.push(at(tx + 30, bl, T(name, size: size, weight: "bold")))
+    items.push(at-right(x1 - 36, bl, right, w: rw + 10))
+  }
+  y += row-h * races.len()
+  items.push(at(x0, y - 1.125, rect(width: (x1 - x0) * 1pt, height: 2.25pt, fill: teal-line)))
+  let bottom = y + 30.0
+  items.push(at(x0, 0, rect(width: (x1 - x0) * 1pt, height: bottom * 1pt, stroke: 2.5pt + black)))
+
+  let avail = pg.h - band-bottom-gap - band-top
+  let f = calc.min(1.0, avail / bottom)
+  assert(f >= 0.5, message: "Cover page: the election description is too long to fit on one page. Shorten it.")
+  let card = block(width: page-w * 1pt, height: bottom * 1pt, { for it in items { it } })
+  let dx = (pg.w - page-w) / 2
+  let y0 = calc.max(band-top, calc.min(66.0 + (pg.h - page-h) / 2, pg.h - band-bottom-gap - bottom * f))
+  if f < 1.0 {
+    at(dx + page-w * (1 - f) / 2, y0, scale(f * 100%, origin: top + left, reflow: true, card))
+  } else {
+    at(dx, y0, card)
+  }
+  footer
+}
+
+// ---------------------------------------------------------------------------
 // Public entry point
 // ---------------------------------------------------------------------------
 
 // election(
 //   ballot-id: "b-2026-000123",        // printed bottom-right on every page
-//   title: "City of Example — 2026",   // optional, printed bottom-left
-//   font-size: "large",                // large (<= 6), medium (<= 14), small (<= 25)
+//   title: "City of Example — 2026",   // cover page + bottom-left of each page
+//   description: "...",                // cover page ("\n" for line breaks)
+//   cover: auto,                       // auto: a cover when title/description given
+//   font-size: "large",                // large (<= 14), medium (<= 25), small (<= 35)
 //   paper: "us-letter",                // or "a4"
 //   races: ((type: "star", title: "Mayor", candidates: ("A", "B")), ...),
 // )
 //
-// Every race gets exactly one page; all pages share the ballot id.
+// Every race gets exactly one page (after the optional cover page); all pages
+// share the ballot id.
 //
 // Race keys: type (star | star-multi | star-pr | score | ranked-robin |
-// approval | plurality | irv), candidates, title (contest name above the
-// card), font-size (overrides the election default), winners (star-multi /
+// approval | plurality | irv), candidates, title and description (shown above
+// the card), write-ins (number of write-in lines), write-in-label, font-size (overrides the election default), winners (star-multi /
 // star-pr), max-rank (ranked types, default 8), yes-no (approval: Yes / No
 // columns, pages 51-52), mark (approval: "box" or "oval"), yes-label,
 // no-label, and text overrides: heading,
@@ -618,6 +748,8 @@
 #let election(
   ballot-id: none,
   title: none,
+  description: none,
+  cover: auto,
   races: (),
   ballot-id-label: "Ballot ID: ",
   show-page-numbers: true,
@@ -628,12 +760,15 @@
   let pg = papers.at(paper)
   set page(width: pg.w * 1pt, height: pg.h * 1pt, margin: 0pt)
   set text(font: verdana, lang: "en")
-  let n = races.len()
-  for (i, race) in races.enumerate() {
+  let has = v => v != none and v != ""
+  let with-cover = if cover == auto { has(title) or has(description) } else { cover }
+  let first = if with-cover { 1 } else { 0 }
+  let n = races.len() + first
+  let footer-for(page) = {
     let left-bits = ()
-    if title != none and title != "" { left-bits.push(title) }
-    if show-page-numbers and n > 1 { left-bits.push("Page " + str(i + 1) + " of " + str(n)) }
-    let footer = {
+    if has(title) { left-bits.push(title) }
+    if show-page-numbers and n > 1 { left-bits.push("Page " + str(page + 1) + " of " + str(n)) }
+    {
       if left-bits.len() > 0 {
         at(36.0, pg.h - 7.0, T(left-bits.join("  ·  "), size: 8.0))
       }
@@ -641,7 +776,12 @@
         at-right(pg.w - 36.0, pg.h - 7.0, T(ballot-id-label + str(ballot-id), size: 10.0, weight: "bold"))
       }
     }
-    if i > 0 { pagebreak() }
-    race-page(race, i, footer, font-size, paper)
+  }
+  if with-cover {
+    cover-page(title, description, races, footer-for(0), paper)
+  }
+  for (i, race) in races.enumerate() {
+    if i + first > 0 { pagebreak() }
+    race-page(race, i, footer-for(i + first), font-size, paper)
   }
 }

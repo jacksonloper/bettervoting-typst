@@ -16,7 +16,7 @@ const BALLOT_TYPES = [
 ] as const;
 type BallotType = (typeof BALLOT_TYPES)[number]['id'];
 
-const FONT_SIZES = { large: 6, medium: 14, small: 25 } as const;
+const FONT_SIZES = { large: 14, medium: 25, small: 35 } as const; // max rows (candidates + write-ins)
 type FontSize = keyof typeof FONT_SIZES;
 type Paper = 'us-letter' | 'a4';
 
@@ -24,6 +24,8 @@ interface Race {
   id: number;
   type: BallotType;
   title: string;
+  description: string;
+  writeIns: number;
   candidates: string;
   winners: number;
   maxRank: string;
@@ -37,6 +39,7 @@ interface Race {
 interface Election {
   ballotId: string;
   title: string;
+  description: string;
   paper: Paper;
   fontSize: FontSize;
   showPageNumbers: boolean;
@@ -48,6 +51,8 @@ const newRace = (partial: Partial<Race> = {}): Race => ({
   id: nextId++,
   type: 'star',
   title: '',
+  description: '',
+  writeIns: 0,
   candidates: 'Andre\nBlake\nCarmen\nDavid\nErin',
   winners: 3,
   maxRank: '',
@@ -62,6 +67,8 @@ const newRace = (partial: Partial<Race> = {}): Race => ({
 type JsonRace = {
   type: BallotType;
   title?: string;
+  description?: string;
+  'write-ins'?: number;
   candidates: string[];
   winners?: number;
   'max-rank'?: number;
@@ -73,6 +80,7 @@ type JsonRace = {
 type JsonElection = {
   'ballot-id'?: string;
   title?: string;
+  description?: string;
   paper?: Paper;
   'font-size'?: FontSize;
   'show-page-numbers'?: boolean;
@@ -82,6 +90,7 @@ type JsonElection = {
 const fromJson = (j: JsonElection): Election => ({
   ballotId: j['ballot-id'] ?? '',
   title: j.title ?? '',
+  description: j.description ?? '',
   paper: j.paper ?? 'us-letter',
   fontSize: j['font-size'] ?? 'large',
   showPageNumbers: j['show-page-numbers'] ?? true,
@@ -89,6 +98,8 @@ const fromJson = (j: JsonElection): Election => ({
     newRace({
       type: r.type,
       title: r.title ?? '',
+      description: r.description ?? '',
+      writeIns: r['write-ins'] ?? 0,
       candidates: r.candidates.join('\n'),
       winners: r.winners ?? 3,
       maxRank: r['max-rank'] ? String(r['max-rank']) : '',
@@ -122,21 +133,22 @@ const MAX_CANDIDATES = Math.max(...Object.values(FONT_SIZES));
 function findProblems(e: Election): Problem[] {
   const out: Problem[] = [];
   e.races.forEach((r, index) => {
-    const n = candidatesOf(r).length;
+    const n = candidatesOf(r).length + r.writeIns;
+    const what = r.writeIns ? 'candidates and write-ins' : 'candidates';
     const size = r.fontSize || e.fontSize;
     const limit = FONT_SIZES[size];
     const base = { raceId: r.id, index, title: r.title };
     if (n === 0) {
-      out.push({ ...base, message: 'This race has no candidates. Add at least one name.', fixes: [] });
+      out.push({ ...base, message: 'This race has no candidates. Add at least one name or write-in line.', fixes: [] });
     } else if (n > limit) {
       const fits = (Object.keys(FONT_SIZES) as FontSize[]).filter((k) => FONT_SIZES[k] >= n);
       const extra = n - limit;
       out.push({
         ...base,
         message:
-          `${n} candidates is too many for font size “${size}”, which fits at most ${limit} per page. ` +
+          `${n} ${what} is too many for font size “${size}”, which fits at most ${limit} per page. ` +
           (fits.length
-            ? `Switch to a smaller font size or remove ${extra} candidate${extra === 1 ? '' : 's'}.`
+            ? `Switch to a smaller font size or remove ${extra} candidate${extra === 1 ? '' : 's'}${r.writeIns ? ' or write-in line' + (extra === 1 ? '' : 's') : ''}.`
             : `No font size fits more than ${MAX_CANDIDATES}; remove ${n - MAX_CANDIDATES} or split the race.`),
         fixes: fits.map((k) => ({ label: `Use ${k} (≤ ${FONT_SIZES[k]})`, patch: { fontSize: k } })),
       });
@@ -150,12 +162,15 @@ const raceLabel = (p: { index: number; title: string }) => `Race ${p.index + 1}$
 const toJson = (e: Election): JsonElection => ({
   'ballot-id': e.ballotId,
   title: e.title,
+  description: e.description,
   paper: e.paper,
   'font-size': e.fontSize,
   'show-page-numbers': e.showPageNumbers,
   races: e.races.map((r) => {
     const out: JsonRace = { type: r.type, candidates: candidatesOf(r) };
     if (r.title.trim()) out.title = r.title.trim();
+    if (r.description.trim()) out.description = r.description.trim();
+    if (r.writeIns > 0) out['write-ins'] = r.writeIns;
     if (r.type === 'star-multi' || r.type === 'star-pr') out.winners = r.winners;
     if ((r.type === 'irv' || r.type === 'ranked-robin') && Number(r.maxRank) > 0) out['max-rank'] = Number(r.maxRank);
     if (r.fontSize) out['font-size'] = r.fontSize;
@@ -313,8 +328,16 @@ export default function App() {
             </div>
           </label>
           <label>
-            Election title <span className="muted">(lower-left footer)</span>
+            Election title <span className="muted">(cover page and footer)</span>
             <input value={election.title} onChange={(e) => update({ title: e.target.value })} />
+          </label>
+          <label>
+            Election description <span className="muted">(cover page)</span>
+            <textarea
+              rows={3}
+              value={election.description}
+              onChange={(e) => update({ description: e.target.value })}
+            />
           </label>
           <div className="grid2">
             <label>
@@ -378,7 +401,7 @@ export default function App() {
         </div>
 
         {election.races.map((r, i) => {
-          const n = candidatesOf(r).length;
+          const n = candidatesOf(r).length + r.writeIns;
           const limit = FONT_SIZES[r.fontSize || election.fontSize];
           const open = selected === r.id;
           const problem = problems.find((p) => p.raceId === r.id);
@@ -445,6 +468,14 @@ export default function App() {
                     Contest title <span className="muted">(shown above the card; optional)</span>
                     <input value={r.title} onChange={(e) => updateRace(r.id, { title: e.target.value })} />
                   </label>
+                  <label>
+                    Contest description <span className="muted">(under the title; optional)</span>
+                    <textarea
+                      rows={2}
+                      value={r.description}
+                      onChange={(e) => updateRace(r.id, { description: e.target.value })}
+                    />
+                  </label>
                   {(r.type === 'star-multi' || r.type === 'star-pr') && (
                     <label>
                       Winners
@@ -497,6 +528,15 @@ export default function App() {
                       rows={Math.min(12, Math.max(4, n + 1))}
                       value={r.candidates}
                       onChange={(e) => updateRace(r.id, { candidates: e.target.value })}
+                    />
+                  </label>
+                  <label>
+                    Write-in lines
+                    <input
+                      type="number"
+                      min={0}
+                      value={r.writeIns}
+                      onChange={(e) => updateRace(r.id, { writeIns: Math.max(0, Math.floor(Number(e.target.value) || 0)) })}
                     />
                   </label>
                   <label>
@@ -562,8 +602,8 @@ export default function App() {
           + Add race
         </button>
         <p className="muted small">
-          Font sizes: large is the reference size (≤ {FONT_SIZES.large}), medium ≤ {FONT_SIZES.medium}, small ≤{' '}
-          {FONT_SIZES.small} candidates per race. Default for this election: ≤ {defaultLimit}.
+          Font sizes: large ≤ {FONT_SIZES.large}, medium ≤ {FONT_SIZES.medium}, small ≤ {FONT_SIZES.small} rows
+          (candidates + write-ins) per race. Default for this election: ≤ {defaultLimit}.
         </p>
       </aside>
 

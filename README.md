@@ -8,11 +8,14 @@ Printable paper ballots that reproduce the layouts in
   (p. 43), Proportional STAR (p. 46), Score (p. 45), Ranked Robin (p. 47),
   Approval (p. 49, or with Yes / No columns as on pp. 51–52), Choose One /
   plurality (p. 55) and Ranked Choice / IRV (p. 56).
-- **Several races per election:** each race gets exactly one page, and every
-  page carries the same **ballot ID** in the lower-right footer.
+- **Several races per election:** an optional cover page shows the election
+  title, description and list of contests. Each race then gets exactly one
+  page, with its own title and description above the card and optional
+  write-in lines. Every page carries the same **ballot ID** in the
+  lower-right footer.
 - **Matches the deck closely:** positions, sizes and colours were measured from
-  the PDF. At the default size, every text line lands within about 0.5pt of the
-  reference (see [Checking against the reference](#checking-against-the-reference)).
+  the PDF. At the PDF's own size, every text line lands within about 0.7pt of
+  the reference (see [Checking against the reference](#checking-against-the-reference)).
 - **Paper size:** US Letter (the reference) or A4.
 - **[Browser sandbox](web/):** a Vite/React page that compiles the template in
   the browser, for trying settings and candidates.
@@ -38,11 +41,13 @@ You can also call the template from Typst directly:
 
 #election(
   ballot-id: "b-2026-000123",
-  title: "Example County General Election 2026",  // lower-left footer (optional)
+  title: "Example County General Election 2026",  // cover page + footer
+  description: "Use a dark pen…",                  // cover page
   paper: "us-letter",                              // or "a4"
   font-size: "large",                              // default for every race
   races: (
-    (type: "star", title: "Mayor", candidates: ("Andre", "Blake", "Carmen")),
+    (type: "star", title: "Mayor", description: "Four-year term.",
+     candidates: ("Andre", "Blake", "Carmen"), write-ins: 1),
     (type: "star-pr", title: "School Board", winners: 3, candidates: (...)),
     (type: "irv", title: "District Attorney", max-rank: 5, candidates: (...)),
   ),
@@ -57,7 +62,9 @@ Election:
 | --- | --- | --- |
 | `ballot-id` | none | printed bottom-right on every page |
 | `ballot-id-label` | `"Ballot ID: "` | prefix for the ID |
-| `title` | none | printed bottom-left |
+| `title` | none | cover page, and bottom-left of every page |
+| `description` | none | cover page; `\n` for line breaks, `\n\n` between paragraphs |
+| `cover` | `auto` | cover page; `auto` shows one when there's a title or description |
 | `show-page-numbers` | `true` | "Page i of n" bottom-left |
 | `paper` | `"us-letter"` | `"us-letter"` or `"a4"` |
 | `font-size` | `"large"` | default font size for every race (see below) |
@@ -70,6 +77,9 @@ Race:
 | `type` | `star`, `star-multi`, `star-pr`, `score`, `ranked-robin`, `approval`, `plurality`, `irv` |
 | `candidates` | list of names |
 | `title` | contest name shown above the card (as on p. 33) |
+| `description` | text under the title, above the card |
+| `write-ins` | number of write-in rows ("Write-in:" plus a line), after the candidates |
+| `write-in-label` | label on write-in rows (default `"Write-in:"`; `""` for just a line) |
 | `font-size` | overrides the election default |
 | `winners` | number of seats (`star-multi`, `star-pr`) |
 | `max-rank` | number of rank columns (`irv`, `ranked-robin`; default `min(candidates, 8)`) |
@@ -81,19 +91,23 @@ Race:
 ### Font sizes
 
 The font size is chosen separately from the number of candidates. Each size has
-a fixed maximum, and a race with more candidates than its size allows fails to
-compile with an error that names the race:
+a fixed maximum number of rows (candidates plus write-ins). A race with more
+rows than its size allows fails to compile with an error that names the race
+and suggests a fix:
 
-| `font-size` | scale | max candidates per race |
+| `font-size` | scale of the reference PDF | max rows per race |
 | --- | --- | --- |
-| `large` | 100%, as in the reference PDF | 6 |
-| `medium` | 74% | 14 |
-| `small` | 55% | 25 |
+| `large` (default) | 72% | 14 |
+| `medium` | 53% | 25 |
+| `small` | 43% | 35 |
 
-The limits hold for every ballot type, even with a contest title. Within a
-size, rows may tighten a little to make room. Smaller sizes shrink text and
-vertical spacing only: the card keeps its width and the columns stay where the
-reference puts them.
+The limits hold for every ballot type, even with a contest title and a two-line
+description. Within a size, rows may tighten a little to make room. Smaller
+sizes shrink text and vertical spacing only: the card keeps its width and the
+columns stay where the reference puts them.
+
+There is also `reference` (100%, at most 6 rows), the PDF's own size. It is
+larger than voters need and exists so the layout can be checked against the PDF.
 
 ### A4
 
@@ -145,7 +159,8 @@ typst compile --font-path fonts --root . tests/reference.typ /tmp/ref.pdf
 python3 tools/compare.py /tmp/ref.pdf   # needs pdfminer.six
 ```
 
-`tests/reference.typ` rebuilds the reference pages, and `tools/compare.py`
+`tests/reference.typ` rebuilds the reference pages at `font-size: "reference"`,
+and `tools/compare.py`
 reports how far each line of text is from where the PDF puts it. Two
 differences are expected:
 

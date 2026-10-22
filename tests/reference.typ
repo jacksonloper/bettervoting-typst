@@ -4,7 +4,7 @@
 
 #let five = ("Andre", "Blake", "Carmen", "David", "Erin")
 #let ella = ("Andre", "Blake", "Carmen", "David", "Ella")
-#election(races: (
+#election(font-size: "reference", races: (
   (type: "star", candidates: five),
   (type: "star-multi", winners: 3, candidates: ella),
   (type: "star-pr", winners: 3, candidates: ella + ("Felicia",)),
