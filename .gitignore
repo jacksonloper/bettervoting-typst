@@ -1,1 +1,6 @@
 *.pdf
+!reference/*.pdf
+!examples/*.pdf
+node_modules/
+dist/
+*.tsbuildinfo

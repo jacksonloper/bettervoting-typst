@@ -1,0 +1,68 @@
+{
+  "ballot-id": "b-2026-EXAMPLE-0001",
+  "title": "Example County General Election 2026",
+  "description": "This ballot has one page per contest. Use a dark pen and fill each oval, box or bubble completely. Each contest explains how to mark it and how it is counted.\n\nTo vote for someone not listed, write their name on a write-in line and mark it like any other candidate.",
+  "font-size": "large",
+  "races": [
+    {
+      "type": "star",
+      "title": "Mayor",
+      "candidates": ["Andre", "Blake", "Carmen", "David", "Erin"],
+      "description": "Four-year term beginning January 2027.",
+      "write-ins": 1
+    },
+    {
+      "type": "star-multi",
+      "title": "City Council (3 seats)",
+      "winners": 3,
+      "candidates": ["Andre", "Blake", "Carmen", "David", "Ella"],
+      "description": "Three at-large seats."
+    },
+    {
+      "type": "star-pr",
+      "title": "School Board (3 seats)",
+      "winners": 3,
+      "candidates": ["Andre", "Blake", "Carmen", "David", "Ella", "Felicia"]
+    },
+    {
+      "type": "score",
+      "title": "Parks Commissioner",
+      "candidates": ["Andre", "Blake", "Carmen", "David", "Ella"]
+    },
+    {
+      "type": "ranked-robin",
+      "title": "County Treasurer",
+      "candidates": ["Andre", "Blake", "Carmen", "David", "Erin"],
+      "write-ins": 1
+    },
+    {
+      "type": "approval",
+      "title": "Library Board",
+      "yes-no": true,
+      "candidates": ["Andre", "Blake", "Carmen", "David", "Erin"]
+    },
+    {
+      "type": "plurality",
+      "title": "Sheriff",
+      "candidates": ["Andre", "Blake", "Carmen", "David", "Erin"],
+      "description": "Elected countywide."
+    },
+    {
+      "type": "irv",
+      "title": "District Attorney",
+      "candidates": ["Andre", "Blake", "Carmen", "David", "Erin"]
+    },
+    {
+      "type": "star",
+      "title": "Port Commissioner",
+      "font-size": "medium",
+      "candidates": ["Andre Alvarez", "Blake Brown", "Carmen Castillo", "David Douglas", "Erin Evans", "Felicia Fong", "Gus Garcia", "Hana Hughes", "Ivan Ito", "Jada Jones", "Kofi King", "Lena Lopez"]
+    },
+    {
+      "type": "approval",
+      "title": "Neighborhood Advisory Panel",
+      "font-size": "small",
+      "candidates": ["Andre Alvarez", "Blake Brown", "Carmen Castillo", "David Douglas", "Erin Evans", "Felicia Fong", "Gus Garcia", "Hana Hughes", "Ivan Ito", "Jada Jones", "Kofi King", "Lena Lopez", "Mo Mahmoud", "Nia Nguyen", "Omar Ortiz", "Priya Patel", "Quinn Quade", "Rosa Reyes", "Sam Singh", "Tara Tran", "Uma Udall", "Victor Vega", "Wen Wu", "Xavier Xu", "Yara Young"]
+    }
+  ]
+}

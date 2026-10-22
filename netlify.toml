@@ -1,0 +1,14 @@
+# Netlify: deploys the browser sandbox in web/ (it imports ballot.typ, fonts
+# and images from the repo root, so the whole repo is the build context).
+[build]
+  base = "web"
+  command = "npm ci && npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[[headers]]
+  for = "/assets/*.wasm"
+  [headers.values]
+    Content-Type = "application/wasm"
